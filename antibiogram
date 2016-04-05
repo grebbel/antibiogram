@@ -1,0 +1,237 @@
+setwd("~/Documents/workspace/R-project/Antibiogram")
+
+
+# libraries
+library(plyr)
+library(dplyr)
+library(tidyr)
+library(stringr)
+library(xlsx)
+library(ggplot2)
+# library(plotly) not available for R version 3.2.2
+
+# Read text file (file should be in the same working directory as this script)
+con <- file("antibiogram_raw.txt")
+txtData <- readLines(con, warn = FALSE, skipNul = TRUE)
+close(con)
+
+# Clean up
+txtData <- gsub("\t{1,}", ";", txtData)
+txtData <- gsub("^Page", NA, txtData)
+txtData <- gsub("Site:", "", txtData)
+txtData <- gsub("^;$", NA, txtData)
+txtData <- gsub("^Sensitive.*", "New", txtData)
+txtData <- gsub("^;", "", txtData)
+txtData <- gsub(";$", "", txtData)
+txtData <- gsub("S;R;I", "Data", txtData)
+txtData <- na.omit(txtData)
+
+# Rename Antibiotics
+# Because antibiotics are often mispelled, e.a. Ampicilline / Ampiciline / Ampicyline
+txtData <- gsub("^Ampic[a-z]{1,}", "AMP10", txtData)        
+txtData <- gsub("^Amox/K Clav'ate", "AMC30", txtData)   
+txtData <- gsub("^Chloramp[a-z]{1,}", "C30", txtData) 
+txtData <- gsub("^Ceftriax[a-z]{1,}", "CRO30", txtData) 
+txtData <- gsub("^Cephaloph[a-z]{1,}", "CF30", txtData) #Cephalophin doesn't exist
+txtData <- gsub("^Cephaloth[a-z]{1,}", "CF30", txtData) 
+txtData <- gsub("^Ciproflo[a-z]{1,}", "CIP5", txtData) 
+txtData <- gsub("^Clindam[a-z]{1,}", "CC2", txtData) 
+txtData <- gsub("^Cefotax[a-z]{1,}", "CTX30", txtData) 
+txtData <- gsub("^Cefurox[a-z]{1,}", "CXM30", txtData) 
+txtData <- gsub("^Cefoxit[a-z]{1,}", "FOX30", txtData) 
+txtData <- gsub("^Erythrom[a-z]{1,}", "E15", txtData) 
+txtData <- gsub("^Gentam[a-z]{1,}", "GM10", txtData) 
+txtData <- gsub("^Metroni[a-z]{1,}", "METR", txtData)
+txtData <- gsub("^Nalidixic Acid", "NA30", txtData) 
+txtData <- gsub("^Norfloxa[a-z]{1,}", "NOR10", txtData) 
+txtData <- gsub("^Nitrofur[a-z]{1,}", "FM300", txtData) 
+txtData <- gsub("^Oxac[a-z]{1,}", "OX1", txtData) 
+txtData <- gsub("^Penic[a-z]{1,}", "P10", txtData) 
+txtData <- gsub("^Pyrazinamide{1,}", "PYR", txtData)
+txtData <- gsub("^Sulfameth[a-z]{1,}", "SXT25", txtData) 
+txtData <- gsub("^Tetrac[a-z]{1,}", "TE30", txtData) 
+txtData <- gsub("^Vancom[a-z]{1,}", "VA30", txtData) 
+txtData <- gsub("^Imip[a-z]{1,}", "IMP", txtData) 
+txtData <- gsub("^Rifamp[a-z]{1,}", "RIF", txtData)  
+txtData <- gsub("^Ethamb[a-z]{1,}", "ETB", txtData) 
+txtData <- gsub("^Streptom[a-z]{1,}", "STREP", txtData) 
+
+
+
+# Function to split vector into list
+VectorToList <- function(vec, ind) {
+  
+  n = 1
+  splitIndex <- which(vec == ind)
+  myList <- NULL
+  
+  for (i in splitIndex[-length(splitIndex)]) {
+    
+    myList[[n]] <- vec[(i+1):(splitIndex[n+1]-1)]
+    n <- n+1
+  }
+  return(myList)
+}
+
+# Function to split vector into data frame
+VectorToDF <- function(vec, ind){
+  
+  d <- which(vec[[1]] == ind)+1
+  l <- length(vec[[1]])
+  
+  myDf <- data.frame(
+    matrix(unlist(
+      strsplit(
+        vec[[1]][d:l], split = ";", fixed = FALSE, perl = FALSE, useBytes = FALSE
+      )
+    )
+    , ncol = 4, byrow = TRUE
+    )
+  )
+  
+  return(myDf)
+  
+}
+
+# Function to select elements from list
+SelectListItem <- function(lst, elnt = 1, lkp) {
+  
+  itemVec <- sapply(lst, function(x) x[[elnt]][[1]]) # Create vector with all items from selected list element
+  myList <- lst[which(itemVec == lkp)] # Use which function on vector to create vector of indexnumbers and select items from original list
+  
+  return(myList)
+}
+
+# Create list of separate vectors
+txtList <- VectorToList(txtData, "New") 
+
+# Create list of lists with results in data frame
+newList <- NULL
+for (m in 1:length(txtList)) {
+  
+  testresDf <- VectorToDF(txtList[m], "Data")
+  colnames(testresDf) <- c("Antibiotics", "S", "R", "I")
+  newList[[m]] <- list(bacteria = txtList[[m]][1], source = txtList[[m]][2], result = testresDf)
+  
+}
+
+# Create data frame from list
+newDF <- NULL
+for (s in 1:length(newList)) {
+  
+  cntRows <- length(newList[[s]]$result[,1])
+  bact <- rep_len(newList[[s]]$bacteria,cntRows)
+  srce <-  rep_len(newList[[s]]$source,cntRows)
+  tmpDF <- cbind(Bacteria = bact, Source = srce, newList[[s]]$result)
+  newDF <- rbind(newDF, tmpDF)
+}
+newDF$Bacteria <- gsub("(^|[[:space:]])([[:alpha:]])", "\\1\\U\\2", newDF$Bacteria, perl=TRUE) # Change all first letters of bacteria names to upper case
+
+# Correct Bacteria species
+newDF$Bacteria <- gsub("?Species", "species", newDF$Bacteria) 
+newDF$Bacteria <- gsub("Actinomyces Viscosus", "Actinomyces viscosus", newDF$Bacteria) 
+newDF$Bacteria <- gsub("?Fragilis", "fragilis", newDF$Bacteria) 
+newDF$Bacteria <- gsub("?Braakii", "braakii", newDF$Bacteria) 
+newDF$Bacteria <- gsub("?Farmeri", "farmeri", newDF$Bacteria) 
+newDF$Bacteria <- gsub("?Freundii", "freundii", newDF$Bacteria) 
+newDF$Bacteria <- gsub("?Koseri", "koseri", newDF$Bacteria) 
+newDF$Bacteria <- gsub("?Cloacae", "cloacae", newDF$Bacteria) 
+newDF$Bacteria <- gsub("?Faecalis", "faecalis", newDF$Bacteria) 
+newDF$Bacteria <- gsub("?Coli", "coli", newDF$Bacteria) 
+newDF$Bacteria <- gsub("?Influenzae", "influenzae", newDF$Bacteria) 
+newDF$Bacteria <- gsub("?Biotype", "biotype", newDF$Bacteria) 
+newDF$Bacteria <- gsub("HEMOPHILUS INFLUENZA", "Haemophilus influenzae", newDF$Bacteria) 
+newDF$Bacteria <- gsub("?Ornithinolytica", "ornithinolytica", newDF$Bacteria) 
+newDF$Bacteria <- gsub("?Oxytoca", "oxytoca", newDF$Bacteria) 
+newDF$Bacteria <- gsub("?Pneumoniae", "pneumoniae", newDF$Bacteria) 
+newDF$Bacteria <- gsub("?Terrigena", "terrigena", newDF$Bacteria) 
+newDF$Bacteria <- gsub("?Lacunata", "lacunata", newDF$Bacteria) 
+newDF$Bacteria <- gsub("?Morganii", "morganii", newDF$Bacteria) 
+newDF$Bacteria <- gsub("Mycobacteria Tuberculosis Conplex", "Mycobacterium tuberculosis complex", newDF$Bacteria) 
+newDF$Bacteria <- gsub("Mycobacterium Tuberculosis Complex", "Mycobacterium tuberculosis complex", newDF$Bacteria) 
+newDF$Bacteria <- gsub("?Mirabilis", "mirabilis", newDF$Bacteria) 
+newDF$Bacteria <- gsub("?Penneri", "penneri", newDF$Bacteria) 
+newDF$Bacteria <- gsub("?Vulgaris", "vulgaris", newDF$Bacteria) 
+newDF$Bacteria <- gsub("?Aeruginosa", "aeruginosa", newDF$Bacteria) 
+newDF$Bacteria <- gsub("SALMONELLA GROUP.*", "Salmonella group", newDF$Bacteria) 
+newDF$Bacteria <- gsub("?Paratyphi", "paratyphi", newDF$Bacteria) 
+newDF$Bacteria <- gsub("?SALMONELLA PARATYPHI", "Salmonella paratyphi", newDF$Bacteria) 
+newDF$Bacteria <- gsub("Boydii", "boydii", newDF$Bacteria)
+newDF$Bacteria <- gsub("Dysenteriae", "dysenteriae", newDF$Bacteria) 
+newDF$Bacteria <- gsub("SHIGELLA GROUP", "Shigella group", newDF$Bacteria) 
+newDF$Bacteria <- gsub("Sonnei", "sonnei", newDF$Bacteria)
+newDF$Bacteria <- gsub("Aureus", "aureus", newDF$Bacteria) 
+newDF$Bacteria <- gsub("Lugdunensis", "lugdunensis", newDF$Bacteria) 
+newDF$Bacteria <- gsub("Saprophyticus", "saprophyticus", newDF$Bacteria)
+newDF$Bacteria <- gsub("Agalactiae", "agalactiae", newDF$Bacteria) 
+newDF$Bacteria <- gsub("Streptococcus Anginosus/milleri", "Streptococcus anginosus/milleri", newDF$Bacteria)
+newDF$Bacteria <- gsub("Pyogenes", "pyogenes", newDF$Bacteria)
+newDF$Bacteria <- gsub("4\\(\\ Erwina species)", "4 (Erwina species)", newDF$Bacteria) 
+newDF$Bacteria <- gsub("Viridans Streptococcus", "Viridans streptococci", newDF$Bacteria)
+
+newDF$Bacteria <- gsub("Coagulase-negative Staphylococcus species", "CNS", newDF$Bacteria)
+## Export data
+write.csv(newDF, "newDF.csv")
+
+## Read data and clean up SOURCE
+
+newDF2 <- read.csv("newDF.csv", sep = ",")
+
+newDF2 <- subset(newDF2, select=c(Bacteria, Source, Antibiotics, S, I, R))
+
+newDF2$N <- newDF2$S + newDF2$R + newDF2$I
+
+# # and create separate data frames 
+# 
+# by_source <- select(newDF2, Bacteria, Source, S, I, R)
+# by_source <- group_by(by_source, Bacteria, Source)
+# 
+# by_source$N <- by_source$S + by_source$R + by_source$I
+
+### Remove Tuberculosis and its drugs
+
+newDF2 <- newDF2[-grep("Mycobacterium tuberculosis complex", newDF2$Bacteria), ]
+
+sum(newDF2$N)
+
+# Cleaning up Source
+## Rename 'W' and 'WOUND' as 'Wound' 
+newDF2$Source <- gsub("WOUND", "AIAIAI", fixed = TRUE, newDF2$Source) 
+newDF2$Source <- gsub("W", "Wound", fixed = TRUE, newDF2$Source) 
+newDF2$Source <- gsub("AIAIAI", "Wound", fixed = TRUE, newDF2$Source) 
+newDF2$Source
+
+## rest of the Source names
+newDF2$Source <- gsub("BODY FLUID", "Body fluid", fixed = TRUE, newDF2$Source)
+newDF2$Source <- gsub("BLOOD-PEADITRIC", "Blood-pediatric", fixed = TRUE, newDF2$Source)
+newDF2$Source <- gsub("BLOOD-AEROBIC", "Blood-aerobic", fixed = TRUE, newDF2$Source)
+newDF2$Source <- gsub("BLOOD-ANAEROBIC", "Blood-anaerobic", fixed = TRUE, newDF2$Source)
+newDF2$Source <- gsub("EAR CULTURE", "Ear culture", fixed = TRUE, newDF2$Source)
+newDF2$Source <- gsub("NASAL DISCHARGE", "Nasal discharge", fixed = TRUE, newDF2$Source)
+newDF2$Source <- gsub("PUS", "Pus", fixed = TRUE, newDF2$Source)
+newDF2$Source <- gsub("ROUTINE", "Routine", fixed = TRUE, newDF2$Source)
+newDF2$Source <- gsub("SPUTUM", "Sputum", fixed = TRUE, newDF2$Source)
+newDF2$Source <- gsub("STOOL", "Stool", fixed = TRUE, newDF2$Source)
+newDF2$Source <- gsub("Thorat culture", "Throat culture", fixed = TRUE, newDF2$Source)
+newDF2$Source <- gsub("EYE CULTURE", "Eye culture", fixed = TRUE, newDF2$Source)
+
+head(newDF2)
+summary(newDF2)
+
+### Aggregate double sources and antibiotics.
+
+newDF2 <- aggregate(cbind(S,I,R,N)~Bacteria+Source+Antibiotics, data=newDF2, sum, na.rm=TRUE)
+
+## Export data
+
+write.csv(newDF2, "newDF2.csv")
+
+
+newDF2$generation <- as.numeric(newDF2$generation)
+write.csv(newDF2, "Antibiotics_results.csv")
+
+prop.table(table(newDF2$Gemiddelde.Top3>=5.5))
+
+
+
+
