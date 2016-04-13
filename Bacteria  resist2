@@ -127,6 +127,8 @@ basic_summ_t2 = dcast(basic_summ_t2, Bacteria ~ Antibiotics + variable, value.va
 View(basic_summ_t2)
 
 
+
+
 ### remove incomplete cases ###
 
 Bactresis <- newDF4[complete.cases(newDF4), ]
@@ -295,24 +297,33 @@ View(by_wnd_aggr)
 
 ###### URINE culture resistance
 
-by_urine <- select(newDF3, Bacteria, Source, Antibiotics, S, I, R)
+##Select >6 obs ###
+
+by_urine <- newDF3[complete.cases(newDF3), ]
+by_urine$n <- by_urine$S + by_urine$R
+by_urine <- by_urine[by_urine$n > 6,]
+
+by_urine <- select(by_urine, Bacteria, Source, Antibiotics, S, I, R, n, Resis)
 by_urine <- group_by(by_urine, Source)
 by_urine <- by_urine[grep("Urine", by_urine$Source), ]
 
-by_urine$n <- by_urine$S + by_urine$R
-by_urine$total <- by_urine$n + by_urine$I
-
-by_urine$resis <- (by_urine$R/by_urine$n)*100
-by_urine$resis <- format(by_urine$resis, digits=2, nsmall=2)
-by_urine$resis <- as.numeric(by_urine$resis)
-sum(by_urine$total)
+sum(by_urine$n)
 
 # make pivot table URINE Bacterie ~ Antibiotics
 
-by_urine_tabl = dcast(by_urine, Antibiotics ~ Bacteria, value.var = "resis")
+by_urine_tabl = dcast(by_urine, Antibiotics ~ Bacteria, value.var = "Resis")
 View(by_urine_tabl)
 
+
+by_urine_tabl2 = dcast(by_urine, Antibiotics ~ Bacteria, value.var = "n")
+View(by_urine_tabl2)
+
+
 summary(by_urine_tabl)
+summary(by_urine_tabl$`Enterococcus spp.`)
+
+
+write.xlsx(by_urine_tabl2, "by_urine_tabl2.xlsx")
 
 # Export to excel
 write.xlsx(by_urine_tabl, "by_urine_tabl.xlsx")
