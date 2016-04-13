@@ -1,0 +1,84 @@
+setwd("~/Documents/workspace/R-project/Antibiogram")
+
+
+library(xlsx)
+library(reshape2)
+library(dplyr)
+library(scales)
+
+
+newDF2 <- read.csv("newDF2.csv", sep = ",")
+
+newDF2 <- subset(newDF2, select=c(Bacteria, Source, Antibiotics, S, I, R, N))
+
+
+##### Group species together
+##### \\ = space    [a-z] = any character   {,1} = repeat previous 1 or more time
+
+# put together Citrobacter species (C. braakii, farmeri, freundii & koseri)
+newDF2$Bacteria <- gsub("Citrobacter\\s[a-z]{1,}", "Citrobacter spp.", newDF2$Bacteria) 
+
+# put together Enterobacter cloacae & species
+newDF2$Bacteria <- gsub("Enterobacter\\s[a-z]{1,}", "Enterobacter spp.", newDF2$Bacteria) 
+
+# put together Enterococcus faecalis & species
+newDF2$Bacteria <- gsub("Enterococcus\\s[a-z]{1,}", "Enterococcus spp.", newDF2$Bacteria) 
+
+# put together Klebsiella ornithinolytica, oxytoca, pneumoniae, terrigena & species
+newDF2$Bacteria <- gsub("Klebsiella\\s[a-z]{1,}", "Klebsiella spp.", newDF2$Bacteria) 
+
+# put together Proteus mirabilis, penneri, vulgaris & species
+newDF2$Bacteria <- gsub("Proteus\\s[a-z]{1,}", "Proteus spp.", newDF2$Bacteria) 
+
+# put together Pseudomonas auruginosa & species
+newDF2$Bacteria <- gsub("Pseudomonas\\s[a-z]{1,}", "Pseudomonas spp.", newDF2$Bacteria) 
+
+# put together Salmonella group, paratyphi A & B & species
+newDF2$Bacteria <- gsub("Salmonella\\s[a-z]{1,}", "Salmonella spp.", newDF2$Bacteria) 
+newDF2$Bacteria <- gsub("Salmonella spp.\\s[AB]", "Salmonella spp.", newDF2$Bacteria) 
+
+# put together Shigella boydii, dysenteriae, group A1, sonnei & species
+newDF2$Bacteria <- gsub("Shigella\\s[a-z]{1,}", "Shigella spp.", newDF2$Bacteria) 
+newDF2$Bacteria <- gsub("Shigella spp.\\sA1", "Shigella spp.", newDF2$Bacteria)
+
+# put together Staphylococcus lugdunensis & saprophyticus as CNS (keep S. aureus seperate)
+newDF2$Bacteria <- gsub("Staphylococcus lugdunensis", "CNS", newDF2$Bacteria) 
+newDF2$Bacteria <- gsub("Staphylococcus saprophyticus", "CNS", newDF2$Bacteria)
+
+# Rename Group [A-Z] Streptococcus as 'Streptococcus Group [A-Z]'
+newDF2$Bacteria <- gsub("Group\\sA\\sStreptococcus", "Streptococcus Group A", newDF2$Bacteria) 
+newDF2$Bacteria <- gsub("Group\\sB\\sStreptococcus", "Streptococcus Group B", newDF2$Bacteria) 
+newDF2$Bacteria <- gsub("Group\\sC\\sStreptococcus", "Streptococcus Group C", newDF2$Bacteria) 
+newDF2$Bacteria <- gsub("Group\\sF\\sStreptococcus", "Streptococcus Group F", newDF2$Bacteria) 
+newDF2$Bacteria <- gsub("Group\\sG\\sStreptococcus", "Streptococcus Group G", newDF2$Bacteria) 
+newDF2$Bacteria <- gsub("Streptococcus\\sagalactiae\\s[:(:]Group\\sB[:):]", "Streptococcus Group B", newDF2$Bacteria) 
+newDF2$Bacteria <- gsub("Streptococcus\\sanginosus[:/:]milleri", "Streptococcus Group F", newDF2$Bacteria) 
+newDF2$Bacteria <- gsub("Streptococcus\\spyogenes\\s[:(:]Group\\sA[:):]", "Streptococcus Group A", newDF2$Bacteria)
+
+# Put together Streptococcus species & Viridans
+newDF2$Bacteria <- gsub("Streptococcus\\sspecies", "Streptococcus spp.", newDF2$Bacteria) 
+newDF2$Bacteria <- gsub("Viridans\\sstreptococci", "Streptococcus spp.", newDF2$Bacteria) 
+
+# In case needed, put all Streptococcus Group [A-Z] together as Beta-hemolytic Streptococci
+newDF2$Bacteria <- gsub("Streptococcus\\sGroup\\s[A-Z]", "Beta-hemolytic Streptococci", newDF2$Bacteria) 
+
+## aggregate new groups.
+
+newDF3 <- aggregate(newDF2[,c("S","I","R", "N")], by=list(newDF2$Bacteria, newDF2$Source, newDF2$Antibiotics), "sum")
+
+names(newDF3)[names(newDF3)=="Group.1"] <- "Bacteria"
+names(newDF3)[names(newDF3)=="Group.2"] <- "Source"
+names(newDF3)[names(newDF3)=="Group.3"] <- "Antibiotics"
+
+
+# When calculating %resistance, leave out the intermediates. 
+newDF3$Resis <- ((newDF3$R/(newDF3$S + newDF3$R))*100)
+newDF3$Resis <- formatC(newDF3$Resis, digits=3)
+newDF3$Resis <- as.numeric(newDF3$Resis)
+#sumDF$n <- (sumDF$S + sumDF$R)
+
+#Export ndewDF3 data
+write.csv(newDF3, "newDF3.csv")
+
+
+
