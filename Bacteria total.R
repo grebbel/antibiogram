@@ -13,6 +13,9 @@ newDF2 <- read.csv("newDF2.csv", sep = ",")
 newDF2 <- subset(newDF2, select=c(Bacteria, Source, Antibiotics, S, I, R, N))
 
 sum(newDF2$N)
+######## Do an analysis on the total data set, 
+######## before bacteria species are grouped and filtered in file bacteria resis2.R
+
 
 ####### bacteria number per source ######
 
