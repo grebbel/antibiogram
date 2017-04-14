@@ -78,6 +78,9 @@ newDF3$Resis <- formatC(newDF3$Resis, digits=3)
 newDF3$Resis <- as.numeric(newDF3$Resis)
 #sumDF$n <- (sumDF$S + sumDF$R)
 
+sum(newDF2$N)
+
+
 #Export ndewDF3 data
 write.csv(newDF3, "newDF3.csv")
 
@@ -133,6 +136,8 @@ View(basic_summ_t2)
 
 Bactresis <- newDF4[complete.cases(newDF4), ]
 
+sum(Bactresis$n)
+
 # make pivot table Bacterie ~ Antibiotics
 Bactresis_pivot = dcast(Bactresis, Bacteria ~ Antibiotics, value.var = "n")
 View(Bactresis_pivot)
@@ -180,16 +185,23 @@ Bactoplot <- ggplot(Bactresis) + geom_point(aes(x = Bacteria, y = Antibiotics, c
 
 Bactoplot
 
+sum(Bactresis$n)
+
+
 ## Select n>6 ##
 
-Bactoplot6 <- ggplot(Bactresis6) + geom_point(aes(x = Bacteria, y = Antibiotics, colour = Resis, size = n)) +
+
+
+
+Bactoplot7 <- ggplot(Bactresis6) + geom_point(aes(x = Bacteria, y = Antibiotics, colour = Resis, size = n)) +
   scale_colour_gradient(name = '% resistance', high = "red", low = "green") +
   scale_size(name = 'sample size', range = c(2,10)) +
   xlab('Species') + ylab('Antibiotic') +
   theme(text = element_text(size = 12), axis.text.x = element_text(angle=60, hjust=1, size=12) )
 
-Bactoplot6
+Bactoplot7
 
+sum(Bactresis6$n)
 
 
 ################## Bacterial resistance per source
@@ -321,6 +333,21 @@ View(by_urine_tabl2)
 
 summary(by_urine_tabl)
 summary(by_urine_tabl$`Enterococcus spp.`)
+
+#PLOT Urine #####
+
+Urineplot6 <- ggplot(by_urine) + geom_point(aes(x = Bacteria, y = Antibiotics, colour = Resis, size = n)) +
+  scale_colour_gradient(name = '% resistance', high = "red", low = "green") +
+  scale_size(name = 'sample size', range = c(2,10)) +
+  xlab('Species') + ylab('Antibiotic') +
+  theme(text = element_text(size = 12), axis.text.x = element_text(angle=60, hjust=1, size=12) )
+
+Urineplot6
+
+
+
+
+
 
 
 write.xlsx(by_urine_tabl2, "by_urine_tabl2.xlsx")
