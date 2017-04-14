@@ -10,6 +10,22 @@ library(scales)
 newDF2 <- read.csv("newDF2.csv", sep = ",")
 
 newDF2 <- subset(newDF2, select=c(Bacteria, Source, Antibiotics, S, I, R, N))
+write.xlsx(newDF2,"newDF2.xlsx")
+
+x <- sum(newDF2$N) 
+y <- sum(newDF2$R)
+x
+y
+y/x*100
+
+
+
+### Aggregate on Species.
+
+DFspecies <- aggregate(cbind(N)~Bacteria, data=newDF2, sum, na.rm=TRUE)
+
+View(DFspecies)
+
 
 
 ##### Group species together
