@@ -16,7 +16,7 @@ library(ggplot2)
 ## read data 
 newDF3 <- read.csv("newDF3.csv", sep = ",")
 
-
+write.xlsx(newDF3,"newDF3.xlsx")
 ########################## SUMMARY per Source total ################
 
 ### Aggregate on Source.
@@ -43,11 +43,35 @@ sum(Bactresis7$N)
 sum(Bactresis7$n)
 
 sum(newDF3$N) - sum(Bactresis7$N)
+write.csv(Bactresis7, "Bactresis7.csv")
+
+########################### SELECT Glycopeptides #########################
+
+vanco <- Bactresis7[grep("VA30", Bactresis7$Antibiotics), ]
+
+
+
+
+########################### SELECT beta-lactams AND Staph aureus #########################
+
+
+toMatch1 <- Bactresis7[grep("Staphylococcus aureus",Bactresis7$Bacteria), ]
+
+
+toMatch2 <-subset(toMatch1, Antibiotics == "AMC30" | Antibiotics == "AMP10" | Antibiotics == "CTX30" 
+                  | Antibiotics == "FOX30" | Antibiotics == "CRO30" | Antibiotics == "CXM30" 
+                  | Antibiotics == "CF30"  | Antibiotics == "OX1"   | Antibiotics == "P10" )
+
+toMatch2 <- toMatch1[grep("AMC30", "AMP10","OX1","P10",Bactresis7$Antibiotics), ]
+
+
+toMatch <- c("A1", "A9", "A6")
+matches <- unique (grep(paste(toMatch,collapse="|"), 
+                        myfile$Letter, value=TRUE))
 
 
 ###################### URINE culture resistance #############################
 
-##Select >6 obs ###
 
 by_urine <- Bactresis7[complete.cases(Bactresis7), ]
 by_urine$n <- by_urine$S + by_urine$R
@@ -82,34 +106,41 @@ write.xlsx(by_urine_tabl, "by_urine_tabl.xlsx")
 
 ###################### WOUND culture resistance #############################
 
-by_wnd <- select(Bactresis7, Bacteria, Source, Antibiotics, S, I, R)
+by_wnd <- select(Bactresis7, Bacteria, Source, Antibiotics, N, n, Resis)
 by_wnd <- group_by(by_wnd, Source)
 by_wnd <- by_wnd[grep("Wound", by_wnd$Source), ]
 
-by_wnd$n <- by_wnd$S + by_wnd$R
-by_wnd$total <- by_wnd$n + by_wnd$I
-
-by_wnd$resis <- (by_wnd$R/by_wnd$n)*100
-by_wnd$resis <- format(by_wnd$resis, digits=2, nsmall=2)
-by_wnd$resis <- as.numeric(by_wnd$resis)
-sum(by_wnd$total)
+sum(by_wnd$N)
+sum(by_wnd$n)
 
 # make pivot table WOUND Bacterie ~ Antibiotics
 
-by_wnd_tabl = dcast(by_wnd, Bacteria ~ Antibiotics, value.var = "resis")
+by_wnd_tabl = dcast(by_wnd, Antibiotics ~ Bacteria , value.var = "Resis")
 View(by_wnd_tabl)
+
+
+by_wnd_tabl2 = dcast(by_wnd, Antibiotics ~ Bacteria , value.var = "n")
+View(by_wnd_tabl2)
+
+
 
 summary(by_wnd_tabl)
 
-min(by_wnd$resis)
-max(by_wnd$resis)
+min(by_wnd$Resis)
+max(by_wnd$Resis)
 
-ggplot(data = melt(by_wnd_tabl), aes(x=variable, y=value)) + geom_boxplot(aes(fill=variable))
+sum(by_wnd_tabl2$CNS)
+summary(by_wnd_tabl2$CNS)
+
+CNS_r <- by_wnd_tabl$CNS[complete.cases(by_wnd_tabl$CNS)]
+summary(CNS_r)
+
+# ggplot(data = melt(by_wnd_tabl), aes(x=variable, y=value)) + geom_boxplot(aes(fill=variable))
 
 
 
 # total nr WOUND infective bacteria
-by_wnd_aggr <- aggregate(by_wnd[,c("total")], by=list(by_wnd$Bacteria), "sum")
+by_wnd_aggr <- aggregate(by_wnd[,c("N")], by=list(by_wnd$Bacteria), "sum")
 View(by_wnd_aggr)
 
 
